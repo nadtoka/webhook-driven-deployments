@@ -20,6 +20,7 @@ It creates a VPC, subnet, security group for SSH, optional floating IPs, and emi
 cd terraform/providers/otc/core-lb-db
 terraform init
 terraform plan \
+  -var "config_path=./config.yml" \
   -var "service=myservice" \
   -var "stage_name=pr123" \
   -var "image_id=<your_image_id>"
@@ -34,6 +35,7 @@ Key variables:
 - `allowed_ssh_cidr` defaults to `0.0.0.0/0` for demo purposes. **Restrict this in real deployments.**
 - `use_keypair_workaround` (default: `false`) lets you reuse an existing keypair/public key instead of creating one.
 - `enable_dns` is `false` by default; DNS records require an existing zone ID and record name.
+- `config_path` defaults to `./config.yml` and allows supplying inputs via YAML (keys: `meta`, `network`, `servers`, `network.nat_gateway`). CLI variables remain as overrides.
 
 ## Outputs consumed by Chef
 

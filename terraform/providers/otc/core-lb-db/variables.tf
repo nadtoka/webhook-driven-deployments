@@ -1,11 +1,19 @@
 variable "service" {
   type        = string
   description = "Service name used for naming resources."
+  default     = ""
+}
+
+variable "config_path" {
+  type        = string
+  description = "Path to YAML config supplying inputs; defaults to ./config.yml."
+  default     = "./config.yml"
 }
 
 variable "stage_name" {
   type        = string
   description = "Stage identifier (e.g., pr123)."
+  default     = ""
 }
 
 variable "stage" {
@@ -66,11 +74,6 @@ variable "image_id" {
   type        = string
   description = "Image ID to use for all instances."
   default     = ""
-
-  validation {
-    condition     = length(var.image_id) > 0
-    error_message = "Set image_id to a valid Open Telekom Cloud image ID."
-  }
 }
 
 variable "default_flavor_id" {
