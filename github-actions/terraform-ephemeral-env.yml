@@ -1,0 +1,94 @@
+name: Terraform + Kitchen ephemeral env
+
+on:
+  workflow_dispatch:
+    inputs:
+      phase:
+        description: "APPLY or DESTROY"
+        required: true
+        default: "APPLY"
+      service:
+        description: "Service name"
+        required: true
+      stage_name:
+        description: "Stage name"
+        required: true
+      stage_suffix:
+        description: "Optional stage suffix"
+        required: false
+      dns:
+        description: "Optional DNS"
+        required: false
+      manifest_tag:
+        description: "Optional manifest tag"
+        required: false
+  repository_dispatch:
+    types: [deploy]
+
+env:
+  TF_ROOT: terraform/environments/example
+  CHEF_ROOT: chef
+
+jobs:
+  deploy:
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.phase == 'APPLY') || (github.event_name == 'repository_dispatch' && (github.event.client_payload.phase || 'APPLY') == 'APPLY') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - name: Set variables
+        run: |
+          echo "TF_VAR_service=${{ github.event.inputs.service || github.event.client_payload.service }}" >> $GITHUB_ENV
+          echo "TF_VAR_stage_name=${{ github.event.inputs.stage_name || github.event.client_payload.stage_name }}" >> $GITHUB_ENV
+          echo "TF_VAR_stage=${{ github.event.inputs.stage_suffix || github.event.client_payload.stage_suffix || '' }}" >> $GITHUB_ENV
+          echo "TF_VAR_dns=${{ github.event.inputs.dns || github.event.client_payload.dns || '' }}" >> $GITHUB_ENV
+          echo "MANIFEST_TAG=${{ github.event.inputs.manifest_tag || github.event.client_payload.manifest_tag || '' }}" >> $GITHUB_ENV
+      - name: Parse manifest
+        run: bash scripts/manifest/parse_manifest.sh
+      - name: Terraform init
+        run: terraform -chdir="$TF_ROOT" init
+      - name: Terraform plan and apply
+        run: |
+          terraform -chdir="$TF_ROOT" plan -out=plan.tfplan
+          terraform -chdir="$TF_ROOT" apply -auto-approve plan.tfplan
+      - name: Generate Chef env
+        run: bash ${CHEF_ROOT}/scripts/gen_env_from_terraform.sh "$TF_ROOT"
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+      - name: Install dependencies
+        run: |
+          cd ${CHEF_ROOT}
+          bundle install
+      - name: Kitchen converge
+        run: |
+          cd ${CHEF_ROOT}
+          bundle exec kitchen converge
+      - name: Kitchen verify
+        run: |
+          cd ${CHEF_ROOT}
+          bundle exec kitchen verify
+      - name: Callback
+        run: |
+          ENV_NAME=${TF_VAR_service}-${TF_VAR_stage_name}${TF_VAR_stage} TF_VAR_service=${TF_VAR_service} bash scripts/callbacks/callback.sh success deploy
+
+  destroy:
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.phase == 'DESTROY') || (github.event_name == 'repository_dispatch' && (github.event.client_payload.phase || 'APPLY') == 'DESTROY') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - name: Set variables
+        run: |
+          echo "TF_VAR_service=${{ github.event.inputs.service || github.event.client_payload.service }}" >> $GITHUB_ENV
+          echo "TF_VAR_stage_name=${{ github.event.inputs.stage_name || github.event.client_payload.stage_name }}" >> $GITHUB_ENV
+          echo "TF_VAR_stage=${{ github.event.inputs.stage_suffix || github.event.client_payload.stage_suffix || '' }}" >> $GITHUB_ENV
+          echo "TF_VAR_dns=${{ github.event.inputs.dns || github.event.client_payload.dns || '' }}" >> $GITHUB_ENV
+      - name: Terraform init
+        run: terraform -chdir="$TF_ROOT" init
+      - name: Terraform destroy
+        run: terraform -chdir="$TF_ROOT" destroy -auto-approve || true
+      - name: Callback
+        run: |
+          ENV_NAME=${TF_VAR_service}-${TF_VAR_stage_name}${TF_VAR_stage} TF_VAR_service=${TF_VAR_service} bash scripts/callbacks/callback.sh success destroy

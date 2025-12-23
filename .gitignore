@@ -1,0 +1,15 @@
+chef/.env
+chef/id_rsa
+**/*.pem
+.kitchen/
+Policyfile.lock.json
+*.tfstate
+*.tfstate.*
+.terraform/
+plan.out
+plan.tfplan
+build.env
+.kitchen.local.yml
+.kitchen.lock
+.chef/
+.kitchen/logs/
