@@ -1,8 +1,8 @@
 locals {
   flavors = {
-    core = coalesce(try(local.core_cfg.flavor, null), length(var.flavor_id_core) > 0 ? var.flavor_id_core : null, var.default_flavor_id)
-    db   = coalesce(try(local.db_cfg.flavor, null), length(var.flavor_id_db) > 0 ? var.flavor_id_db : null, var.default_flavor_id)
-    lb   = coalesce(try(local.lb_cfg.flavor, null), length(var.flavor_id_lb) > 0 ? var.flavor_id_lb : null, var.default_flavor_id)
+    core = coalesce(length(var.flavor_id_core) > 0 ? var.flavor_id_core : null, try(local.core_cfg.flavor, null), var.default_flavor_id)
+    db   = coalesce(length(var.flavor_id_db) > 0 ? var.flavor_id_db : null, try(local.db_cfg.flavor, null), var.default_flavor_id)
+    lb   = coalesce(length(var.flavor_id_lb) > 0 ? var.flavor_id_lb : null, try(local.lb_cfg.flavor, null), var.default_flavor_id)
   }
 
   keypair_public_key = var.use_keypair_workaround && length(var.existing_public_key) > 0 ? var.existing_public_key : tls_private_key.ssh[0].public_key_openssh
@@ -10,9 +10,9 @@ locals {
   keypair_name_effective = var.use_keypair_workaround && length(var.existing_keypair_name) > 0 ? var.existing_keypair_name : opentelekomcloud_compute_keypair_v2.this[0].name
 
   image_ids = {
-    core = coalesce(try(local.core_cfg.image_id, null), var.image_id)
-    db   = coalesce(try(local.db_cfg.image_id, null), var.image_id)
-    lb   = coalesce(try(local.lb_cfg.image_id, null), var.image_id)
+    core = coalesce(length(var.image_id) > 0 ? var.image_id : null, try(local.core_cfg.image_id, null))
+    db   = coalesce(length(var.image_id) > 0 ? var.image_id : null, try(local.db_cfg.image_id, null))
+    lb   = coalesce(length(var.image_id) > 0 ? var.image_id : null, try(local.lb_cfg.image_id, null))
   }
 
   eip_enabled = {
