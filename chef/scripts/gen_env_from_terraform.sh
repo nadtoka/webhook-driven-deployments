@@ -15,21 +15,36 @@ fi
 
 OUTPUT_JSON=$(terraform -chdir="$TF_DIR" output -json)
 
-SSH_HOST=$(echo "$OUTPUT_JSON" | jq -er '.ssh_host.value // empty' || true)
+SSH_HOST_CORE=$(echo "$OUTPUT_JSON" | jq -er '.ssh_host_core.value // empty' || true)
+SSH_HOST_DB=$(echo "$OUTPUT_JSON" | jq -er '.ssh_host_db.value // empty' || true)
+SSH_HOST_LB=$(echo "$OUTPUT_JSON" | jq -er '.ssh_host_lb.value // empty' || true)
+SSH_HOST_SINGLE=$(echo "$OUTPUT_JSON" | jq -er '.ssh_host.value // empty' || true)
 SSH_USER=$(echo "$OUTPUT_JSON" | jq -er '.ssh_user.value // empty' || true)
 SSH_PORT=$(echo "$OUTPUT_JSON" | jq -er '.ssh_port.value // empty' || true)
 SSH_KEY_CONTENT=$(echo "$OUTPUT_JSON" | jq -er '.ssh_private_key.value // empty' || true)
 SSH_KEY_CONTENT_PEM=$(echo "$OUTPUT_JSON" | jq -er '.ssh_private_key_pem.value // empty' || true)
 SSH_KEY_PATH_OUTPUT=$(echo "$OUTPUT_JSON" | jq -er '.ssh_key_path.value // empty' || true)
 
+if [[ -z "$SSH_HOST_CORE" ]]; then
+  SSH_HOST_CORE="$SSH_HOST_SINGLE"
+fi
+
+if [[ -z "$SSH_HOST_CORE" || -z "$SSH_USER" || -z "$SSH_PORT" ]]; then
+  echo "Missing required outputs: ssh_host_core=${SSH_HOST_CORE:-unset} ssh_user=${SSH_USER:-unset} ssh_port=${SSH_PORT:-unset}" >&2
+  exit 1
+fi
+
+if [[ -z "$SSH_HOST_DB" ]]; then
+  SSH_HOST_DB="$SSH_HOST_SINGLE"
+fi
+
+if [[ -z "$SSH_HOST_LB" ]]; then
+  SSH_HOST_LB="$SSH_HOST_SINGLE"
+fi
+
 CHEF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="$CHEF_DIR/.env"
 KEY_FILE="$CHEF_DIR/id_rsa"
-
-if [[ -z "$SSH_HOST" || -z "$SSH_USER" || -z "$SSH_PORT" ]]; then
-  echo "Missing required outputs: ssh_host=${SSH_HOST:-unset} ssh_user=${SSH_USER:-unset} ssh_port=${SSH_PORT:-unset}" >&2
-  exit 1
-fi
 
 if [[ -n "$SSH_KEY_PATH_OUTPUT" ]]; then
   KEY_FILE="$SSH_KEY_PATH_OUTPUT"
@@ -43,11 +58,14 @@ else
 fi
 
 cat > "$ENV_FILE" <<ENV
-export SSH_HOST=${SSH_HOST}
+export SSH_HOST=${SSH_HOST_CORE}
+export SSH_HOST_CORE=${SSH_HOST_CORE}
+export SSH_HOST_DB=${SSH_HOST_DB}
+export SSH_HOST_LB=${SSH_HOST_LB}
 export SSH_USER=${SSH_USER}
 export SSH_PORT=${SSH_PORT}
 export SSH_KEY_PATH=${KEY_FILE}
 ENV
 
 echo "Wrote ${ENV_FILE} for Chef." >&2
-echo "TODO: replace placeholder Terraform with real infrastructure outputs." >&2
+echo "Ensure SSH hosts map to the correct Kitchen suites (core/db/load-balancer)." >&2
