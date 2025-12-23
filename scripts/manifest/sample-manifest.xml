@@ -1,0 +1,14 @@
+<manifest>
+  <component name="backend">
+    <tag>v1.2.3</tag>
+    <field>BE_TAG</field>
+  </component>
+  <component name="frontend">
+    <tag>v4.5.6</tag>
+    <field>FE_TAG</field>
+  </component>
+  <component name="infra">
+    <tag>v0.9.0</tag>
+    <field>INFRA_TAG</field>
+  </component>
+</manifest>

@@ -1,0 +1,82 @@
+stages:
+  - build
+  - deploy
+  - destroy
+
+variables:
+  TF_ROOT: "terraform/environments/example"
+  CHEF_ROOT: "chef"
+  ENV_NAME: "${TF_VAR_service}-${TF_VAR_stage_name}${TF_VAR_stage}"
+  FQDN: "${TF_VAR_dns:-example.com}"
+  ENV_URL: "https://${FQDN}"
+
+.parse_manifest:
+  script:
+    - mkdir -p scripts/manifest
+    - bash scripts/manifest/parse_manifest.sh
+  artifacts:
+    name: "build-env"
+    paths:
+      - build.env
+    when: always
+  rules:
+    - if: '$PHASE == "APPLY"'
+    - if: '$PHASE == "DESTROY"'
+
+.deploy_template:
+  stage: deploy
+  script:
+    - echo "Phase: ${PHASE:-APPLY}"
+    - source build.env || true
+    - terraform -chdir="$TF_ROOT" init
+    - terraform -chdir="$TF_ROOT" plan -out=plan.tfplan
+    - |
+      if [[ "${PHASE}" == "APPLY" ]]; then
+        terraform -chdir="$TF_ROOT" apply -auto-approve plan.tfplan
+      else
+        echo "Skipping apply because PHASE=${PHASE}"
+      fi
+    - bash ${CHEF_ROOT}/scripts/gen_env_from_terraform.sh "$TF_ROOT"
+    - |
+      if command -v ruby >/dev/null 2>&1; then
+        pushd ${CHEF_ROOT}
+        if command -v bundle >/dev/null 2>&1; then
+          bundle install --path vendor/bundle
+        fi
+        if command -v kitchen >/dev/null 2>&1 || bundle exec kitchen --version >/dev/null 2>&1; then
+          bundle exec kitchen converge
+          bundle exec kitchen verify
+        else
+          echo "Kitchen not available; install Ruby & Bundler to run kitchen" && exit 1
+        fi
+        popd
+      else
+        echo "Ruby not installed; skipping Kitchen." && exit 0
+      fi
+    - ENV_NAME=${ENV_NAME} TF_VAR_service=${TF_VAR_service} bash scripts/callbacks/callback.sh success deploy
+  artifacts:
+    paths:
+      - ${CHEF_ROOT}/.env
+    when: always
+  rules:
+    - if: '$PHASE == "APPLY"'
+
+.destroy_template:
+  stage: destroy
+  script:
+    - source build.env || true
+    - terraform -chdir="$TF_ROOT" init
+    - terraform -chdir="$TF_ROOT" destroy -auto-approve || true
+    - ENV_NAME=${ENV_NAME} TF_VAR_service=${TF_VAR_service} bash scripts/callbacks/callback.sh success destroy
+  rules:
+    - if: '$PHASE == "DESTROY"'
+
+parse_manifest:
+  stage: build
+  extends: .parse_manifest
+
+deploy:
+  extends: .deploy_template
+
+cleanup:
+  extends: .destroy_template

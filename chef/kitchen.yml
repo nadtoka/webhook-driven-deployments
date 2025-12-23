@@ -1,0 +1,43 @@
+driver:
+  name: ssh
+  ssh_key: <%= ENV['SSH_KEY_PATH'] || 'id_rsa' %>
+  username: <%= ENV['SSH_USER'] || 'ubuntu' %>
+  hostname: <%= ENV['SSH_HOST'] || '127.0.0.1' %>
+  port: <%= (ENV['SSH_PORT'] || '22').to_i %>
+  keepalive: true
+  keepalive_interval: 30
+
+transport:
+  username: <%= ENV['SSH_USER'] || 'ubuntu' %>
+  ssh_key: <%= ENV['SSH_KEY_PATH'] || 'id_rsa' %>
+  connection_timeout: 10
+  connection_retries: 5
+  max_ssh_sessions: 4
+
+provisioner:
+  name: chef_zero
+  product_name: chef
+  require_chef_omnibus: true
+
+verifier:
+  name: inspec
+
+platforms:
+  - name: ubuntu
+
+suites:
+  - name: core
+    run_list:
+      - recipe[example::core]
+    attributes: {}
+    # TODO: replace with real cookbooks and nodes
+  - name: db
+    run_list:
+      - recipe[example::db]
+    attributes: {}
+    # TODO: replace with real cookbooks and nodes
+  - name: load-balancer
+    run_list:
+      - recipe[example::load_balancer]
+    attributes: {}
+    # TODO: replace with real cookbooks and nodes
