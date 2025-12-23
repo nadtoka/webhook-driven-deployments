@@ -2,6 +2,10 @@ source 'https://rubygems.org'
 
 gem 'test-kitchen'
 gem 'kitchen-ssh'
+gem 'kitchen-inspec'
 # Optional helpers
-# gem 'chef'
+# Chef client libraries are often bundled with the Omnibus installer, but
+# adding the gem keeps Kitchen runs predictable in minimal Ruby images.
+gem 'chef'
+# Optional helpers
 # gem 'berkshelf'
