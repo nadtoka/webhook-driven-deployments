@@ -18,8 +18,13 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      - name: Terraform fmt
-        run: terraform fmt -check
+      - name: Terraform fmt (PR)
+        if: github.event_name == 'pull_request'
+        run: terraform fmt -check -recursive
+
+      - name: Terraform fmt (main)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: terraform fmt -recursive
 
       - name: Terraform init
         run: terraform init
@@ -28,3 +33,22 @@ jobs:
         run: terraform validate
         env:
           TF_VAR_config_path: ./config.yml
+
+      - name: Check for formatting changes
+        id: fmt_changes
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          if git status --porcelain | grep .; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Auto-commit formatting changes
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.fmt_changes.outputs.changed == 'true' && github.actor != 'github-actions[bot]'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: chore: apply terraform fmt
+          branch: ${{ github.ref_name }}
+          commit_user_name: github-actions[bot]
+          commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
