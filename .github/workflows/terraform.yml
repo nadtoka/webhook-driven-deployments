@@ -3,7 +3,10 @@ name: Terraform CI
 on:
   pull_request:
   push:
-    branches: [ main ]
+    branches: [main]
+
+permissions:
+  contents: write
 
 jobs:
   terraform:
@@ -11,9 +14,13 @@ jobs:
     defaults:
       run:
         working-directory: terraform/providers/otc/core-lb-db
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -39,16 +46,16 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
           if git status --porcelain | grep .; then
-            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "changed=true" >> "$GITHUB_OUTPUT"
           else
-            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "changed=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Auto-commit formatting changes
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.fmt_changes.outputs.changed == 'true' && github.actor != 'github-actions[bot]'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.fmt_changes.outputs.changed == 'true'
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: chore: apply terraform fmt
+          commit_message: "chore: apply terraform fmt"
           branch: ${{ github.ref_name }}
-          commit_user_name: github-actions[bot]
-          commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
+          commit_user_name: "github-actions[bot]"
+          commit_user_email: "41898282+github-actions[bot]@users.noreply.github.com"
