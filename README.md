@@ -27,6 +27,7 @@ This repository is a public-safe blueprint for building webhook-driven ephemeral
 - [Flow overview](docs/flow.md)
 - [Variables](docs/variables.md)
 - [Security guidance](docs/security.md)
+- [Provider outputs contract](docs/provider-contract.md)
 
 ## Notes
 - Terraform configuration under `terraform/environments/example` is a placeholder using `null_resource` and dummy outputs to stay runnable without cloud credentials.

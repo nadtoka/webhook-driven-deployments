@@ -44,7 +44,16 @@ jobs:
           echo "TF_VAR_dns=${{ github.event.inputs.dns || github.event.client_payload.dns || '' }}" >> $GITHUB_ENV
           echo "MANIFEST_TAG=${{ github.event.inputs.manifest_tag || github.event.client_payload.manifest_tag || '' }}" >> $GITHUB_ENV
       - name: Parse manifest
+        if: env.MANIFEST_TAG != ''
         run: bash scripts/manifest/parse_manifest.sh
+      - name: Write default manifest exports
+        if: env.MANIFEST_TAG == ''
+        run: |
+          {
+            echo "export BE_TAG="
+            echo "export FE_TAG="
+            echo "export INFRA_TAG="
+          } > build.env
       - name: Terraform init
         run: terraform -chdir="$TF_ROOT" init
       - name: Terraform plan and apply
@@ -70,8 +79,13 @@ jobs:
           cd ${CHEF_ROOT}
           bundle exec kitchen verify
       - name: Callback
+        if: always()
         run: |
-          ENV_NAME=${TF_VAR_service}-${TF_VAR_stage_name}${TF_VAR_stage} TF_VAR_service=${TF_VAR_service} bash scripts/callbacks/callback.sh success deploy
+          STATUS="failed"
+          if [[ "${{ job.status }}" == 'success' ]]; then
+            STATUS="success"
+          fi
+          ENV_NAME=${TF_VAR_service}-${TF_VAR_stage_name}${TF_VAR_stage} TF_VAR_service=${TF_VAR_service} bash scripts/callbacks/callback.sh ${STATUS} deploy
 
   destroy:
     if: ${{ (github.event_name == 'workflow_dispatch' && inputs.phase == 'DESTROY') || (github.event_name == 'repository_dispatch' && (github.event.client_payload.phase || 'APPLY') == 'DESTROY') }}
@@ -88,7 +102,22 @@ jobs:
       - name: Terraform init
         run: terraform -chdir="$TF_ROOT" init
       - name: Terraform destroy
-        run: terraform -chdir="$TF_ROOT" destroy -auto-approve || true
-      - name: Callback
         run: |
-          ENV_NAME=${TF_VAR_service}-${TF_VAR_stage_name}${TF_VAR_stage} TF_VAR_service=${TF_VAR_service} bash scripts/callbacks/callback.sh success destroy
+          set +e
+          terraform -chdir="$TF_ROOT" destroy -auto-approve
+          DESTROY_EXIT=$?
+          # Best-effort destroy to avoid blocking callbacks, but capture status for reporting.
+          if [[ ${DESTROY_EXIT} -ne 0 ]]; then
+            echo "DESTROY_STATUS=failed" >> $GITHUB_ENV
+          else
+            echo "DESTROY_STATUS=success" >> $GITHUB_ENV
+          fi
+          exit 0
+      - name: Callback
+        if: always()
+        run: |
+          STATUS="${DESTROY_STATUS:-${{ job.status }}}"
+          if [[ "${STATUS}" != "success" ]]; then
+            STATUS="failed"
+          fi
+          ENV_NAME=${TF_VAR_service}-${TF_VAR_stage_name}${TF_VAR_stage} TF_VAR_service=${TF_VAR_service} bash scripts/callbacks/callback.sh ${STATUS} destroy

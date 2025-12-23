@@ -9,11 +9,22 @@ variables:
   ENV_NAME: "${TF_VAR_service}-${TF_VAR_stage_name}${TF_VAR_stage}"
   FQDN: "${TF_VAR_dns:-example.com}"
   ENV_URL: "https://${FQDN}"
+  SKIP_KITCHEN: "false"
 
 .parse_manifest:
   script:
     - mkdir -p scripts/manifest
-    - bash scripts/manifest/parse_manifest.sh
+    - |
+      if [[ -n "${MANIFEST_TAG:-}" ]]; then
+        bash scripts/manifest/parse_manifest.sh
+      else
+        echo "MANIFEST_TAG not set; writing default build.env"
+        {
+          echo "export BE_TAG="
+          echo "export FE_TAG="
+          echo "export INFRA_TAG="
+        } > build.env
+      fi
   artifacts:
     name: "build-env"
     paths:
@@ -24,7 +35,18 @@ variables:
     - if: '$PHASE == "DESTROY"'
 
 .deploy_template:
+  image: ruby:3.1
   stage: deploy
+  before_script:
+    - apt-get update -y
+    - apt-get install -y curl jq unzip openssh-client
+    - |
+      if ! command -v terraform >/dev/null 2>&1; then
+        TERRAFORM_VERSION=${TERRAFORM_VERSION:-1.5.7}
+        curl -fsSL "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip" -o terraform.zip
+        unzip terraform.zip
+        mv terraform /usr/local/bin/terraform
+      fi
   script:
     - echo "Phase: ${PHASE:-APPLY}"
     - source build.env || true
@@ -38,22 +60,23 @@ variables:
       fi
     - bash ${CHEF_ROOT}/scripts/gen_env_from_terraform.sh "$TF_ROOT"
     - |
-      if command -v ruby >/dev/null 2>&1; then
-        pushd ${CHEF_ROOT}
-        if command -v bundle >/dev/null 2>&1; then
-          bundle install --path vendor/bundle
-        fi
-        if command -v kitchen >/dev/null 2>&1 || bundle exec kitchen --version >/dev/null 2>&1; then
-          bundle exec kitchen converge
-          bundle exec kitchen verify
-        else
-          echo "Kitchen not available; install Ruby & Bundler to run kitchen" && exit 1
-        fi
-        popd
+      if [[ "${SKIP_KITCHEN}" == "true" ]]; then
+        echo "SKIP_KITCHEN=${SKIP_KITCHEN}; skipping Kitchen converge/verify."
       else
-        echo "Ruby not installed; skipping Kitchen." && exit 0
+        pushd ${CHEF_ROOT}
+        bundle install --path vendor/bundle
+        bundle exec kitchen list
+        bundle exec kitchen converge
+        bundle exec kitchen verify
+        popd
       fi
-    - ENV_NAME=${ENV_NAME} TF_VAR_service=${TF_VAR_service} bash scripts/callbacks/callback.sh success deploy
+  after_script:
+    - |
+      STATUS="failed"
+      if [[ "${CI_JOB_STATUS}" == "success" ]]; then
+        STATUS="success"
+      fi
+      ENV_NAME=${ENV_NAME} TF_VAR_service=${TF_VAR_service} bash scripts/callbacks/callback.sh ${STATUS} deploy || true
   artifacts:
     paths:
       - ${CHEF_ROOT}/.env
@@ -62,12 +85,29 @@ variables:
     - if: '$PHASE == "APPLY"'
 
 .destroy_template:
+  image: ruby:3.1
   stage: destroy
+  before_script:
+    - apt-get update -y
+    - apt-get install -y curl jq unzip openssh-client
+    - |
+      if ! command -v terraform >/dev/null 2>&1; then
+        TERRAFORM_VERSION=${TERRAFORM_VERSION:-1.5.7}
+        curl -fsSL "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip" -o terraform.zip
+        unzip terraform.zip
+        mv terraform /usr/local/bin/terraform
+      fi
   script:
     - source build.env || true
     - terraform -chdir="$TF_ROOT" init
     - terraform -chdir="$TF_ROOT" destroy -auto-approve || true
-    - ENV_NAME=${ENV_NAME} TF_VAR_service=${TF_VAR_service} bash scripts/callbacks/callback.sh success destroy
+  after_script:
+    - |
+      STATUS="failed"
+      if [[ "${CI_JOB_STATUS}" == "success" ]]; then
+        STATUS="success"
+      fi
+      ENV_NAME=${ENV_NAME} TF_VAR_service=${TF_VAR_service} bash scripts/callbacks/callback.sh ${STATUS} destroy || true
   rules:
     - if: '$PHASE == "DESTROY"'
 

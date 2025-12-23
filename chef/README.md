@@ -6,6 +6,7 @@ Example workflow:
 ```bash
 cd chef
 source .env
+bundle install
 kitchen converge 'core|db|load-balancer' -c
 kitchen verify
 ```

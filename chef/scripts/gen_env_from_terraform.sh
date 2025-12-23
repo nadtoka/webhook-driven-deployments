@@ -15,20 +15,28 @@ fi
 
 OUTPUT_JSON=$(terraform -chdir="$TF_DIR" output -json)
 
-SSH_HOST=$(echo "$OUTPUT_JSON" | jq -r '.ssh_host.value')
-SSH_USER=$(echo "$OUTPUT_JSON" | jq -r '.ssh_user.value')
-SSH_PORT=$(echo "$OUTPUT_JSON" | jq -r '.ssh_port.value')
+SSH_HOST=$(echo "$OUTPUT_JSON" | jq -er '.ssh_host.value // empty' || true)
+SSH_USER=$(echo "$OUTPUT_JSON" | jq -er '.ssh_user.value // empty' || true)
+SSH_PORT=$(echo "$OUTPUT_JSON" | jq -er '.ssh_port.value // empty' || true)
 SSH_KEY_CONTENT=$(echo "$OUTPUT_JSON" | jq -er '.ssh_private_key.value // empty' || true)
+SSH_KEY_CONTENT_PEM=$(echo "$OUTPUT_JSON" | jq -er '.ssh_private_key_pem.value // empty' || true)
 SSH_KEY_PATH_OUTPUT=$(echo "$OUTPUT_JSON" | jq -er '.ssh_key_path.value // empty' || true)
 
 CHEF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="$CHEF_DIR/.env"
 KEY_FILE="$CHEF_DIR/id_rsa"
 
+if [[ -z "$SSH_HOST" || -z "$SSH_USER" || -z "$SSH_PORT" ]]; then
+  echo "Missing required outputs: ssh_host=${SSH_HOST:-unset} ssh_user=${SSH_USER:-unset} ssh_port=${SSH_PORT:-unset}" >&2
+  exit 1
+fi
+
 if [[ -n "$SSH_KEY_PATH_OUTPUT" ]]; then
   KEY_FILE="$SSH_KEY_PATH_OUTPUT"
-elif [[ -n "$SSH_KEY_CONTENT" ]]; then
-  echo "$SSH_KEY_CONTENT" > "$KEY_FILE"
+elif [[ -n "$SSH_KEY_CONTENT" || -n "$SSH_KEY_CONTENT_PEM" ]]; then
+  KEY_MATERIAL="${SSH_KEY_CONTENT:-$SSH_KEY_CONTENT_PEM}"
+  umask 077
+  echo "$KEY_MATERIAL" > "$KEY_FILE"
   chmod 600 "$KEY_FILE"
 else
   echo "No SSH key material provided; expecting key to exist at $KEY_FILE or via SSH agent." >&2
