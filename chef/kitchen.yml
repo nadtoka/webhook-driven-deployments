@@ -2,7 +2,7 @@ driver:
   name: ssh
   ssh_key: <%= ENV['SSH_KEY_PATH'] || 'id_rsa' %>
   username: <%= ENV['SSH_USER'] || 'ubuntu' %>
-  hostname: <%= ENV['SSH_HOST'] || '127.0.0.1' %>
+  hostname: <%= ENV['SSH_HOST_CORE'] || ENV['SSH_HOST'] || '127.0.0.1' %>
   port: <%= (ENV['SSH_PORT'] || '22').to_i %>
   keepalive: true
   keepalive_interval: 30
@@ -31,13 +31,19 @@ suites:
       - recipe[example::core]
     attributes: {}
     # TODO: replace with real cookbooks and nodes
+    driver:
+      hostname: <%= ENV['SSH_HOST_CORE'] || ENV['SSH_HOST'] || '127.0.0.1' %>
   - name: db
     run_list:
       - recipe[example::db]
     attributes: {}
     # TODO: replace with real cookbooks and nodes
+    driver:
+      hostname: <%= ENV['SSH_HOST_DB'] || ENV['SSH_HOST'] || '127.0.0.1' %>
   - name: load-balancer
     run_list:
       - recipe[example::load_balancer]
     attributes: {}
     # TODO: replace with real cookbooks and nodes
+    driver:
+      hostname: <%= ENV['SSH_HOST_LB'] || ENV['SSH_HOST'] || '127.0.0.1' %>

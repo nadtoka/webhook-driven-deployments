@@ -48,6 +48,7 @@ variables:
         mv terraform /usr/local/bin/terraform
       fi
   script:
+    - TF_ROOT="${TF_ROOT:-terraform/environments/example}"
     - echo "Phase: ${PHASE:-APPLY}"
     - source build.env || true
     - terraform -chdir="$TF_ROOT" init
@@ -98,6 +99,7 @@ variables:
         mv terraform /usr/local/bin/terraform
       fi
   script:
+    - TF_ROOT="${TF_ROOT:-terraform/environments/example}"
     - source build.env || true
     - terraform -chdir="$TF_ROOT" init
     - terraform -chdir="$TF_ROOT" destroy -auto-approve || true

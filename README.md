@@ -31,5 +31,6 @@ This repository is a public-safe blueprint for building webhook-driven ephemeral
 
 ## Notes
 - Terraform configuration under `terraform/environments/example` is a placeholder using `null_resource` and dummy outputs to stay runnable without cloud credentials.
+- A real Open Telekom Cloud stack lives at `terraform/providers/otc/core-lb-db`. Point `TF_ROOT` at this path (for example in CI) to provision a core/db/load-balancer trio that emits the expected Kitchen outputs.
 - Chef Test Kitchen is configured for SSH and expects credentials via environment (.env). Vault and Terraform helper scripts generate these files at runtime without committing secrets.
 - Rotate any leaked tokens, webhook URLs, or keys immediately. Never commit secrets to this repository.

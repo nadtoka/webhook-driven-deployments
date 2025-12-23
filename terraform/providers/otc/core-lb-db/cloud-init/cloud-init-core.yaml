@@ -1,0 +1,6 @@
+#cloud-config
+ssh_pwauth: false
+packages:
+  - curl
+runcmd:
+  - [ sh, -c, "echo 'core node initialized' > /var/tmp/cloud-init-core.txt" ]

@@ -1,0 +1,6 @@
+#cloud-config
+ssh_pwauth: false
+packages:
+  - curl
+runcmd:
+  - [ sh, -c, "echo 'db node initialized' > /var/tmp/cloud-init-db.txt" ]

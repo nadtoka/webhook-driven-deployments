@@ -19,6 +19,9 @@ on:
       dns:
         description: "Optional DNS"
         required: false
+      tf_root:
+        description: "Optional Terraform root (defaults to terraform/environments/example)"
+        required: false
       manifest_tag:
         description: "Optional manifest tag"
         required: false
@@ -42,6 +45,7 @@ jobs:
           echo "TF_VAR_stage_name=${{ github.event.inputs.stage_name || github.event.client_payload.stage_name }}" >> $GITHUB_ENV
           echo "TF_VAR_stage=${{ github.event.inputs.stage_suffix || github.event.client_payload.stage_suffix || '' }}" >> $GITHUB_ENV
           echo "TF_VAR_dns=${{ github.event.inputs.dns || github.event.client_payload.dns || '' }}" >> $GITHUB_ENV
+          echo "TF_ROOT=${{ github.event.inputs.tf_root || github.event.client_payload.tf_root || env.TF_ROOT }}" >> $GITHUB_ENV
           echo "MANIFEST_TAG=${{ github.event.inputs.manifest_tag || github.event.client_payload.manifest_tag || '' }}" >> $GITHUB_ENV
       - name: Parse manifest
         if: env.MANIFEST_TAG != ''
@@ -64,8 +68,6 @@ jobs:
         run: bash ${CHEF_ROOT}/scripts/gen_env_from_terraform.sh "$TF_ROOT"
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1
-        with:
-          bundler-cache: true
       - name: Install dependencies
         run: |
           cd ${CHEF_ROOT}
@@ -99,6 +101,7 @@ jobs:
           echo "TF_VAR_stage_name=${{ github.event.inputs.stage_name || github.event.client_payload.stage_name }}" >> $GITHUB_ENV
           echo "TF_VAR_stage=${{ github.event.inputs.stage_suffix || github.event.client_payload.stage_suffix || '' }}" >> $GITHUB_ENV
           echo "TF_VAR_dns=${{ github.event.inputs.dns || github.event.client_payload.dns || '' }}" >> $GITHUB_ENV
+          echo "TF_ROOT=${{ github.event.inputs.tf_root || github.event.client_payload.tf_root || env.TF_ROOT }}" >> $GITHUB_ENV
       - name: Terraform init
         run: terraform -chdir="$TF_ROOT" init
       - name: Terraform destroy
