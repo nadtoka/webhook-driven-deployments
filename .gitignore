@@ -6,6 +6,7 @@ Policyfile.lock.json
 *.tfstate
 *.tfstate.*
 .terraform/
+.terraform.lock.hcl
 plan.out
 plan.tfplan
 build.env

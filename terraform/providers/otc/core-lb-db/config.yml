@@ -1,0 +1,43 @@
+meta:
+  service: demo
+  stage_name: pr123
+  stage: ""
+  region: eu-de
+  availability_zone: eu-de-01
+  floating_ip_pool: admin_external_net
+
+network:
+  vpc:
+    cidr: 10.0.0.0/16
+  subnets:
+    private:
+      cidr: 10.0.1.0/24
+      gateway_ip: 10.0.1.1
+    nat:
+      cidr: 10.0.2.0/24
+      gateway_ip: 10.0.2.1
+  nat_gateway:
+    enabled: false
+    spec: 1
+    subnet_key: nat
+    snat_target_subnet_key: private
+    eip:
+      bandwidth_mbps: 5
+      share_type: PER
+
+servers:
+  core:
+    image_id: "<OTC_IMAGE_UID>"
+    flavor: "s3.large.2"
+    eip:
+      enabled: false
+  db:
+    image_id: "<OTC_IMAGE_UID>"
+    flavor: "s3.large.2"
+    eip:
+      enabled: false
+  lb:
+    image_id: "<OTC_IMAGE_UID>"
+    flavor: "s3.medium.2"
+    eip:
+      enabled: true

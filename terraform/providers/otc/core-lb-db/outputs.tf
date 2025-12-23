@@ -6,9 +6,9 @@ locals {
   }
 
   floating_ips = {
-    core = var.enable_floating_ip && length(opentelekomcloud_networking_floatingip_v2.core) > 0 ? opentelekomcloud_networking_floatingip_v2.core[0].address : ""
-    db   = var.enable_floating_ip && length(opentelekomcloud_networking_floatingip_v2.db) > 0 ? opentelekomcloud_networking_floatingip_v2.db[0].address : ""
-    lb   = var.enable_floating_ip && length(opentelekomcloud_networking_floatingip_v2.lb) > 0 ? opentelekomcloud_networking_floatingip_v2.lb[0].address : ""
+    core = local.eip_enabled.core && length(opentelekomcloud_networking_floatingip_v2.core) > 0 ? opentelekomcloud_networking_floatingip_v2.core[0].address : ""
+    db   = local.eip_enabled.db && length(opentelekomcloud_networking_floatingip_v2.db) > 0 ? opentelekomcloud_networking_floatingip_v2.db[0].address : ""
+    lb   = local.eip_enabled.lb && length(opentelekomcloud_networking_floatingip_v2.lb) > 0 ? opentelekomcloud_networking_floatingip_v2.lb[0].address : ""
   }
 
   public_hosts = {
@@ -93,4 +93,14 @@ output "lb_ip" {
 output "inventory" {
   value       = local.inventory
   description = "Inventory-style map of hosts."
+}
+
+output "nat_gateway_id" {
+  value       = local.nat_enabled ? opentelekomcloud_nat_gateway_v2.main[0].id : null
+  description = "NAT gateway ID when enabled."
+}
+
+output "nat_eip" {
+  value       = local.nat_enabled ? opentelekomcloud_vpc_eip_v1.nat[0].publicip[0].ip_address : null
+  description = "Allocated NAT public IP when enabled."
 }
