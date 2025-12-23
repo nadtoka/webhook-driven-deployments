@@ -74,6 +74,20 @@ variable "image_id" {
   type        = string
   description = "Image ID to use for all instances."
   default     = ""
+
+  validation {
+    condition = (
+      length(var.image_id) > 0 ||
+      anytrue([
+        for image in [
+          try(try(yamldecode(file(var.config_path)), {}).servers.core.image_id, ""),
+          try(try(yamldecode(file(var.config_path)), {}).servers.db.image_id, ""),
+          try(try(yamldecode(file(var.config_path)), {}).servers.lb.image_id, "")
+        ] : length(image) > 0
+      ])
+    )
+    error_message = "Provide image_id via var.image_id or servers.<role>.image_id in config.yml."
+  }
 }
 
 variable "default_flavor_id" {

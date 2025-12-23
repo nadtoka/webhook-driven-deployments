@@ -1,8 +1,8 @@
 locals {
   flavors = {
-    core = coalesce(try(local.core_cfg.flavor, null), length(var.flavor_id_core) > 0 ? var.flavor_id_core : var.default_flavor_id)
-    db   = coalesce(try(local.db_cfg.flavor, null), length(var.flavor_id_db) > 0 ? var.flavor_id_db : var.default_flavor_id)
-    lb   = coalesce(try(local.lb_cfg.flavor, null), length(var.flavor_id_lb) > 0 ? var.flavor_id_lb : var.default_flavor_id)
+    core = coalesce(try(local.core_cfg.flavor, null), length(var.flavor_id_core) > 0 ? var.flavor_id_core : null, var.default_flavor_id)
+    db   = coalesce(try(local.db_cfg.flavor, null), length(var.flavor_id_db) > 0 ? var.flavor_id_db : null, var.default_flavor_id)
+    lb   = coalesce(try(local.lb_cfg.flavor, null), length(var.flavor_id_lb) > 0 ? var.flavor_id_lb : null, var.default_flavor_id)
   }
 
   keypair_public_key = var.use_keypair_workaround && length(var.existing_public_key) > 0 ? var.existing_public_key : tls_private_key.ssh[0].public_key_openssh
@@ -16,9 +16,9 @@ locals {
   }
 
   eip_enabled = {
-    core = coalesce(try(local.core_cfg.eip.enabled, null), var.enable_floating_ip)
-    db   = coalesce(try(local.db_cfg.eip.enabled, null), var.enable_floating_ip)
-    lb   = coalesce(try(local.lb_cfg.eip.enabled, null), var.enable_floating_ip)
+    core = var.enable_floating_ip && try(local.core_cfg.eip.enabled, false)
+    db   = var.enable_floating_ip && try(local.db_cfg.eip.enabled, false)
+    lb   = var.enable_floating_ip && try(local.lb_cfg.eip.enabled, false)
   }
 }
 
